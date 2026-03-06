@@ -1,5 +1,5 @@
 from estilo.estilizador import Estilo
-
+from estilo.colorUtils import normalizar_color
 
 class ColorAzul(Estilo):
     
@@ -11,14 +11,14 @@ class ColorAzul(Estilo):
         self.fgH ="#DDBF12"   
         self.titCol = "#F1E7AA"   
     def colorTitulo(self):
-        return self.titCol         
+        return normalizar_color(self.titCol)         
     def colorFondo(self):
-        return self.bg
+        return normalizar_color(self.bg)
     def colorLetra(self):
-        return self.fg
+        return normalizar_color(self.fg)
     def colorFondoH(self):
-        return self.bgH
+        return normalizar_color(self.bgH)
     def colorLetraH(self):
-        return self.fgH
+        return normalizar_color(self.fgH)
     def getNombre(self):
-        return self.nombre
+        return normalizar_color(self.nombre)

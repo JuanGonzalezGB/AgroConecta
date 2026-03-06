@@ -5,6 +5,7 @@ Tkinter is required: for more information check: https://docs.python.org/3/libra
 
 Once you've created and activated the virtual environment you just have to install the requirements:
 
+    sudo apt install xsel   
     pip install -r requirements.txt
 
 Execute the program using:

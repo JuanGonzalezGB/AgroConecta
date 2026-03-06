@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+
 class Estilo(ABC):
     @abstractmethod    
     def colorTitulo(self):

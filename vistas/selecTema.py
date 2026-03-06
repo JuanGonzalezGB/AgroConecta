@@ -1,58 +1,43 @@
+# selec_tema.py
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.uix.spinner import Spinner
-from diccionarios import TEMAS
-import modelo.saveConfig
-from controlador.controladorTemas import ControladorTemas
+from kivy.app import App
 import logging
+
+import modelo.saveConfig
+from estilo.temaActual import TemaActual
+from diccionarios import TEMAS
 
 logger = logging.getLogger(__name__)
 
 class SelecTema(BoxLayout):
-    def __init__(self,root, estilo, **kwargs):
+    def __init__(self, screen = None, estilo, **kwargs):
         super().__init__(orientation='vertical', padding=20, spacing=10, **kwargs)
         self.estilo = estilo
-        self.controladorTema = ControladorTemas(self, None, self.estilo)
-        self.root=root
+        self.screen = screen
         # Título
-        self.add_widget(Label(
-            text="Elegir modo de colores",
-            font_size=24,
-            bold=True,
-            color=self.estilo.colorTitulo()
-        ))
+        self.add_widget(Label(text="Elegir modo de colores",
+                              font_size=24, bold=True,
+                              color=self.estilo.colorTitulo()))
 
-        # Spinner (equivalente a OptionMenu)
+        # Spinner
         opciones = list(TEMAS.keys())
         self.tipo = self.traduz()
-        self.spinner = Spinner(
-            text=self.tipo,
-            values=opciones,
-            size_hint_y=None,
-            height=44
-        )
+        self.spinner = Spinner(text=self.tipo, values=opciones, size_hint_y=None, height=44)
         self.spinner.bind(text=self.prever)
         self.add_widget(self.spinner)
 
-        # Botones
-        aceptar_btn = Button(
-            text='Aceptar',
-            size_hint_y=None,
-            height=50,
-            background_color=self.estilo.colorLetra(),
-            color=self.estilo.colorFondo()
-        )
+        # Botón aceptar
+        aceptar_btn = Button(text='Aceptar', size_hint_y=None, height=50,
+                             background_color=self.estilo.colorLetra(), color=self.estilo.colorFondo())
         aceptar_btn.bind(on_release=lambda x: self.submit())
         self.add_widget(aceptar_btn)
 
-        cancelar_btn = Button(
-            text='Cancelar',
-            size_hint_y=None,
-            height=50,
-            background_color=self.estilo.colorLetra(),
-            color=self.estilo.colorFondo()
-        )
+        # Botón cancelar
+        cancelar_btn = Button(text='Cancelar', size_hint_y=None, height=50,
+                              background_color=self.estilo.colorLetra(), color=self.estilo.colorFondo())
         cancelar_btn.bind(on_release=lambda x: self.back())
         self.add_widget(cancelar_btn)
 
@@ -62,24 +47,16 @@ class SelecTema(BoxLayout):
 
     def prever(self, spinner, valor):
         tipito = TEMAS.get(valor, "dark")
-        self.controladorTema.aplicarTema(tipito)
+        logger.debug(f"Preview tema: {tipito}")
+        # Actualiza el fondo de la pantalla actual
+        estilo_preview = TemaActual.cambiar(tipito)
+        App.get_running_app().root.current_screen.actualizar_fondo(estilo_preview)
 
     def submit(self):
         tipito = TEMAS.get(self.spinner.text, "dark")
-        self.controladorTema.aceptarTema(tipito)
+        estilo_nuevo = TemaActual.cambiar(tipito)
+        App.get_running_app().root.current_screen.actualizar_fondo(estilo_nuevo)
+        App.get_running_app().root.current = "MainView"
 
     def back(self):
-        logger.info('\t\tOPERACION CANCELADA')
-        from controlador.controladorVistas import ControladorVistas
-        
-        #self.controlador = ControladorVistas(None, None, None, None, self.estilo, None)
-        self.controlador = ControladorVistas(
-            frame=self,           # <-- usar este BoxLayout como contenedor
-            root=None,            # puedes dejar None si no lo usas
-            user=None,
-            usuario_objetivo=None,
-            estilo=self.estilo,
-            notificationService=None
-)
-
-        self.controlador.open_main()
+        App.get_running_app().root.current = "MainView"
