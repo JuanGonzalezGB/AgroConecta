@@ -50,6 +50,7 @@ class ControladorVistas:
             for child in list(self.frame.children):
                 self.frame.remove_widget(child)
             # Agregar la nueva vista
+            self.frame.clear_widgets()
             self.frame.add_widget(nueva_vista)
             self.vista_actual = nueva_vista
             logger.debug('Vista reemplazada correctamente')

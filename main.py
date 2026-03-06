@@ -2,6 +2,7 @@ import os
 import logging
 from kivy.app import App
 from kivy.uix.screenmanager import ScreenManager, Screen
+from kivy.clock import Clock
 from estilo import estiloFactory
 from vistas.main_view import MainView  # Debe ser la versión Kivy de MainView
 from modelo.CRU import asegurarAdminMongo
