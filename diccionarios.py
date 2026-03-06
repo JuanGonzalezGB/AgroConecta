@@ -9,9 +9,7 @@ TEMAS = {
     "Rojo": "red",
     "Rosa": "pink",
     "VinoTinto": "wine",
-    "Magenta": "magenta",
-    "Alejo": "rasta",
-    "JS": "soldiergreen"
+    "Magenta": "magenta"
 }
 CLASESTEMAS = {
     "dark": colorOscuro.ColorOscuro,
