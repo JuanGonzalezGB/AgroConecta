@@ -1,4 +1,4 @@
-from estilo import colorJS, colorOscuro, colorRasta, colorClaro, colorRosa, colorVerde, colorAzul, colorByN, colorRojo, colorVinoTinto, colorMagenta
+from estilo import colorOscuro, colorClaro, colorRosa, colorVerde, colorAzul, colorByN, colorRojo, colorVinoTinto, colorMagenta
 
 TEMAS = {
     "Oscuro": "dark",
@@ -22,9 +22,7 @@ CLASESTEMAS = {
     "red": colorRojo.ColorRojo,
     "pink":colorRosa.ColorRosa,
     "wine":colorVinoTinto.ColorVinotinto,
-    "magenta":colorMagenta.ColorMagenta,
-    "rasta":colorRasta.ColorRasta,
-    "soldiergreen":colorJS.ColorJS
+    "magenta":colorMagenta.ColorMagenta
 }
 
 TIPOSUSUARIOS = {
