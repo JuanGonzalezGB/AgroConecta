@@ -1,0 +1,21 @@
+==============================================
+              FACTURA DE COMPRA              
+==============================================
+
+Fecha: 25/02/2026 23:48:32
+
+Comprador: comidas (comidas@mail.com)
+Vendedor: pedrito (pedrito@mail.com)
+
+----------------------------------------------
+Producto: Papa
+Cantidad comprada: 150
+Precio unitario: $1,500.0
+Total a pagar: $225,000.0
+----------------------------------------------
+
+La información de pago será enviada por correo 
+electrónico, al igual que una copia de este 
+documento.
+
+¡Gracias por usar AgroConecta! 🌾
