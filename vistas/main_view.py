@@ -1,120 +1,88 @@
-import tkinter as tk
-from notificaciones.iniciar_notis import IniciarNotis
+from kivy.app import App
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.label import Label
+from kivy.uix.textinput import TextInput
+from kivy.uix.button import Button
+from kivy.core.window import Window
 from controlador.controladorLogin import ControladorLogin
 from controlador.controladorVistas import ControladorVistas
+from notificaciones.iniciar_notis import IniciarNotis
 import logging
 
 logger = logging.getLogger(__name__)
 
-class MainView:
-    def __init__(self, root, estilo,notification_service):
+class MainView(BoxLayout):
+    def __init__(self, estilo, notification_service=None, **kwargs):
+        super().__init__(orientation='vertical', padding=20, spacing=10, **kwargs)
         self.estilo = estilo
-        self.root = root   
         self.notificationService = notification_service
         if self.notificationService is None:
-            self.notificationService=IniciarNotis(self.root,None)
-        self.root.geometry("")
-        self.frame = tk.Frame(self.root, bg=estilo.colorFondo(), padx=20, pady=20)
-        self.frame.pack(fill='both', expand=True)
+            self.notificationService = IniciarNotis(None, None)
+        
         self.user = None
-        tk.Label(
-            self.frame,
-            text='AgroConecta',
-            bg=estilo.colorFondo(),
-            fg=estilo.colorTitulo(),
-            font=('Arial', 18, 'bold')
-        ).pack(anchor='n', pady=8)
 
-        tk.Label(
-            self.frame,
-            text='Iniciar sesión',
-            bg=estilo.colorFondo(),
-            fg=estilo.colorTitulo(),
-            font=('Arial', 12)
-        ).pack(pady=6)
+        # Etiquetas principales
+        self.add_widget(Label(text='AgroConecta', font_size=24, bold=True,
+                              color=estilo.colorTitulo()))
+        self.add_widget(Label(text='Iniciar sesión', font_size=18,
+                              color=estilo.colorTitulo()))
 
-        tk.Label(
-            self.frame,
-            text='Email:',
-            bg=estilo.colorFondo(),
-            fg=estilo.colorTitulo()
-        ).pack(anchor='w')
+        # Email
+        self.add_widget(Label(text='Email:', color=estilo.colorTitulo()))
+        self.email_entry = TextInput(multiline=False, size_hint_y=None, height=30,
+                                     background_color=estilo.colorLetra(),
+                                     foreground_color=estilo.colorFondo())
+        self.email_entry.bind(on_text_validate=lambda instance: self.submit())
+        self.add_widget(self.email_entry)
 
-        self.email_entry = tk.Entry(
-            self.frame,
-            fg=estilo.colorFondo(),
-            bg=estilo.colorLetra(),
-            width=40
-        )
-        self.email_entry.pack(anchor='w', pady=1, fill='x')
+        # Contraseña
+        self.add_widget(Label(text='Contraseña:', color=estilo.colorTitulo()))
+        self.pwd_entry = TextInput(password=True, multiline=False, size_hint_y=None, height=30,
+                                   background_color=estilo.colorLetra(),
+                                   foreground_color=estilo.colorFondo())
+        self.pwd_entry.bind(on_text_validate=lambda instance: self.submit())
+        self.add_widget(self.pwd_entry)
 
-        tk.Label(
-            self.frame,
-            text='Contraseña:',
-            bg=estilo.colorFondo(),
-            fg=estilo.colorTitulo()
-        ).pack(anchor='w')
+        # Inicializar ControladorVistas
+        self.controladorVistas = ControladorVistas(
+            frame=self,           # <-- usar este BoxLayout como contenedor
+            root=None,            # puedes dejar None si no lo usas
+            user=self.user,
+            usuario_objetivo=None,
+            estilo=self.estilo,
+            notificationService=self.notificationService
+)
 
-        self.pwd_entry = tk.Entry(
-            self.frame,
-            fg=estilo.colorFondo(),
-            bg=estilo.colorLetra(),
-            show='*',
-            width=40
-        )
-        self.pwd_entry.pack(anchor='w', pady=(1,7), fill='x')
+        # Botones
+        self.login_btn = Button(text='Iniciar sesión', size_hint_y=None, height=50,
+                                background_color=estilo.colorFondoH(), color=estilo.colorLetraH())
+        self.login_btn.bind(on_release=lambda x: self.submit())
+        self.add_widget(self.login_btn)
 
-        self.email_entry.bind('<Return>', lambda e: self.submit())
-        self.pwd_entry.bind('<Return>',  lambda e: self.submit())
-        self.controladorVistas = ControladorVistas(self.frame, self.root, self.user,None, self.estilo,self.notificationService)
+        self.register_btn = Button(text='Registrarse', size_hint_y=None, height=50,
+                                   background_color=estilo.colorLetra(), color=estilo.colorFondo())
+        self.register_btn.bind(on_release=lambda x: self.controladorVistas.open_register())
+        self.add_widget(self.register_btn)
 
-        tk.Button(
-            self.frame,
-            text='Iniciar sesión',
-            bg=estilo.colorFondoH(),
-            fg=estilo.colorLetraH(),
-            command=self.submit,
-            pady=20 
-        ).pack(fill='x', pady=7)
+        self.exit_btn = Button(text='Salir', size_hint_y=None, height=50,
+                               background_color=estilo.colorLetra(), color=estilo.colorFondo())
+        self.exit_btn.bind(on_release=lambda x: self.exitButton())
+        self.add_widget(self.exit_btn)
 
-
-
-        tk.Button(
-            self.frame,
-            text='Registrarse',
-            bg=estilo.colorLetra(),
-            fg=estilo.colorFondo(),
-            command=self.controladorVistas.open_register
-        ).pack(fill='x', pady=7)
-
-        tk.Button(
-            self.frame,
-            text='Salir',
-            bg=estilo.colorLetra(),
-            fg=estilo.colorFondo(),
-            command=self.exitButton
-        ).pack(fill='x', pady=7)
-
-        tk.Button(
-            self.frame,
-            text='🎨',
-            bg=estilo.colorLetra(),
-            fg=estilo.colorFondo(),
-            command=self.controladorVistas.open_temas
-        ).pack(anchor='sw', pady=7)
-
+        self.theme_btn = Button(text='🎨', size_hint=(None, None), size=(50, 50),
+                                background_color=estilo.colorLetra(), color=estilo.colorFondo())
+        self.theme_btn.bind(on_release=lambda x: self.controladorVistas.open_temas())
+        self.add_widget(self.theme_btn)
 
     def exitButton(self):
         logger.info('Programa cerrado por usuario')
-        self.root.quit()
+        App.get_running_app().stop()
 
     def submit(self):
-        email = self.email_entry.get().strip()
-        pwd = self.pwd_entry.get().strip()
+        email = self.email_entry.text.strip()
+        pwd = self.pwd_entry.text.strip()
         user = [email, pwd]
-        self.controlador = ControladorLogin(self.frame, self.root, user, self.estilo,self.notificationService)
-
+        self.controlador = ControladorLogin(None, None, user, self.estilo, self.notificationService)
         if hasattr(self.controlador, "set_notification_service") and self.notificationService:
             self.controlador.set_notification_service(self.notificationService)
-
         self.controlador.login(user)
