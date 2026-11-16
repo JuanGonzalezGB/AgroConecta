@@ -1,6 +1,6 @@
 import logging
 
-from modelo.pedidos_utils import listar_pedidos
+from servicios import pedidos
 
 logger = logging.getLogger(__name__)
 
@@ -12,4 +12,4 @@ class ControladorPedidosRestaurante:
         self.restaurante = restaurante_actual
 
     def listar_mis_pedidos(self):
-        return listar_pedidos(restaurante_email=self.restaurante["email"])
+        return pedidos.listar(self.restaurante)

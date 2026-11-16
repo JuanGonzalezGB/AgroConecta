@@ -1,6 +1,7 @@
 from tkinter import messagebox
-from modelo.CRUD import buscarUsuario
-from modelo.rolesModel import aplicar_roles_y_permisos
+from servicios import autenticacion
+from servicios.autorizacion import permisos_de
+from servicios.errores import ServicioError
 from controlador.controladorVistas import ControladorVistas
 import logging
 
@@ -32,18 +33,15 @@ class ControladorLogin:
             messagebox.showerror('Error', 'Ingrese email y contraseña.')
             return
 
-        # buscarUsuario verifica el hash (bcrypt o SHA-256 legado, que se migra a bcrypt)
-        ok, user = buscarUsuario(email, pwd)
-        if not ok:
-            messagebox.showerror("Error", "Correo o contraseña incorrectos.")
+        try:
+            user = autenticacion.login(email, pwd)  # verifica bcrypt/SHA-256 legado y migra el hash
+        except ServicioError as e:
+            messagebox.showerror("Error", e.mensaje)
             return
 
-        if not user.get("roles"):
-            messagebox.showwarning("Sin rol", "Este usuario no tiene roles asignados.")
-            return
-
-        # Aplicar roles y permisos
-        self.user = aplicar_roles_y_permisos(user)
+        # Permisos calculados desde los roles actuales
+        user["permisos"] = sorted(permisos_de(user))
+        self.user = user
         self.controlaVistas.user = self.user
 
         # Abrir la vista adecuada según roles

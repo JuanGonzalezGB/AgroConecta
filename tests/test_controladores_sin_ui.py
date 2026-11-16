@@ -44,7 +44,7 @@ def test_compra_desde_el_controlador_descuenta_stock_crea_pedido_y_notifica(
     assert "Pedido registrado con ID: PED-" in avisos.infos[0]
     assert obtenerCultivosUsuario(camp)[0]["cantidad"] == 6
     assert list(tmp_path.glob("factura_*.txt"))
-    assert get_notificacion_repo().listar("Carlos")[0]["titulo"] == "Compra confirmada"
+    assert get_notificacion_repo().listar("Carlos")[0]["titulo"] == "Nuevo pedido"
 
     from controlador.controlador_pedidos_restaurante import ControladorPedidosRestaurante
     mis = ControladorPedidosRestaurante(rest).listar_mis_pedidos()

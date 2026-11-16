@@ -1,6 +1,6 @@
-from modelo.CRU import cargarUsuarios, guardarUsuarios
-from auth.validaciones import validar_contrasena
-from auth.seguridad import hash_contrasena, verificar_contrasena
+from modelo.CRU import cargarUsuarios
+from servicios import autenticacion
+from servicios.errores import ServicioError
 import logging
 
 logger = logging.getLogger(__name__)
@@ -13,34 +13,13 @@ class ControladorPerfil:
 
     def cambiar_contraseña(self, contraseña_actual, nueva_contrasena):
         email_usuario = self.user.get("email")
-        logger.debug(f"Iniciando cambio de contraseña para: {email_usuario}")
-        encontrado = False
-
-        for categoria, lista_usuarios in self.usuarios.items():
-            for u in lista_usuarios:
-                if u.get("email") == email_usuario:
-                    encontrado = True
-                    # Validar contraseña actual encriptada
-                    if not verificar_contrasena(contraseña_actual, u.get("password", "")):
-                        logger.warning(f"Contraseña actual incorrecta para usuario {email_usuario}")
-                        return False, "La contraseña actual es incorrecta."
-
-                    if not validar_contrasena(nueva_contrasena):
-                        logger.warning(f"Nueva contraseña no válida para usuario {email_usuario}")
-                        return False, (
-                            "La nueva contraseña no cumple los requisitos: "
-                            "mínimo 8 caracteres, mayúscula, minúscula, número y carácter especial."
-                        )
-
-                    # Guardar contraseña nueva encriptada
-                    u["password"] = hash_contrasena(nueva_contrasena)
-                    guardarUsuarios(self.usuarios)
-                    logger.info(f"Contraseña actualizada correctamente para usuario {email_usuario}")
-                    return True, "Contraseña actualizada correctamente."
-
-        if not encontrado:
-            logger.error(f"Usuario {email_usuario} no encontrado en JSON.")
-            return False, "Usuario no encontrado en JSON."
+        try:
+            autenticacion.cambiar_contrasena(email_usuario, contraseña_actual, nueva_contrasena)
+        except ServicioError as e:
+            logger.warning(f"Cambio de contraseña rechazado para {email_usuario}: {e.mensaje}")
+            return False, e.mensaje
+        logger.info(f"Contraseña actualizada correctamente para usuario {email_usuario}")
+        return True, "Contraseña actualizada correctamente."
 
     def datos_filtrados_usuario(self):
         return {k: v for k, v in self.user.items() if k not in ("password", "permisos", "cultivos")}

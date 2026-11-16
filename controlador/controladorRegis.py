@@ -1,8 +1,8 @@
 from tkinter import messagebox
-from modelo.CRU import cargarCultivos, guardarCultivos
 from auth.permisos import require_permission
-from auth.seguridad import hash_contrasena
-from modelo.CRUD import crearCultivo, crearUsuario
+from diccionarios import TIPOSUSUARIOS
+from servicios import autenticacion, cultivos
+from servicios.errores import ServicioError
 from auth.validaciones import *
 import logging
 logger = logging.getLogger(__name__)
@@ -16,72 +16,38 @@ class ControladorRegis:
         self.estilo = estilo
         self.frame = frame
                 
-    def submitUsr(self): 
-        tipo = self.tipo
+    def submitUsr(self):
         if not self.validar_formulario():
-            return        
+            return
         data = {k: e.get() for k, e in self.fields.items()}
-        
-        # Encriptar la contraseña antes de crear el usuario
-        data["password"] = hash_contrasena(data["password"])
-        
-        exito, agregar = crearUsuario(tipo, data)
-        if exito:
+        try:
+            autenticacion.registrar(TIPOSUSUARIOS[self.tipo], data)
             logger.info('nuevo usuario registrado.')
-            messagebox.showinfo("Éxito", agregar)
-        else:
+            messagebox.showinfo("Éxito", "Registro guardado correctamente")
+        except ServicioError as e:
             logger.warning('error al registrar usuario.')
-            messagebox.showerror("Error", agregar)
-        self.back() 
+            messagebox.showerror("Error", e.mensaje)
+        self.back()
 
     @require_permission("agregar_cultivo")
-    def submitCultivo(self,*,user):
-        cultivo = dict(self.fields)  
-        exito, agregar = crearCultivo(self.user, cultivo)
-        if exito:
-            logger.info('cultivo agregado correctamente.')
-            messagebox.showinfo("Éxito", agregar)
-        else:
-            logger.warning('error al agregar cultivo.')
-            messagebox.showerror("Error", agregar)
-
-    @require_permission("eliminar_cultivo")        
-    def eliminarCultivo(self,nombre_cultivo,*,user):
-        """
-        Elimina un cultivo por nombre para el usuario dado.
-        Retorna (exito: bool, mensaje: str)
-        """
-        #self.nombreCultivo = nombre_cultivo.strip().lower()
-        email_usuario = user.get("email")
-        if not email_usuario:
-            logger.error("Usuario sin email al intentar eliminar cultivo")
-            return False, "Usuario inválido"
-
-        cultivos_data = cargarCultivos()
-        cultivos_usuario = cultivos_data.get(email_usuario, [])
-
-        # Buscar y eliminar cultivo
-        cultivo_encontrado = False
-        for i, c in enumerate(cultivos_usuario):
-            if c.get("nombre") == nombre_cultivo.strip().lower():
-                cultivo_encontrado = True
-                cultivos_usuario.pop(i)
-                logger.info(f"Cultivo '{nombre_cultivo}' eliminado para {email_usuario}")
-                break
-
-        if not cultivo_encontrado:
-            logger.warning(f"Intento de eliminar cultivo inexistente '{nombre_cultivo}' para {email_usuario}")
-            return False, f"No se encontró el cultivo '{nombre_cultivo}'"
-
-        # Guardar cambios
-        cultivos_data[email_usuario] = cultivos_usuario
+    def submitCultivo(self, *, user):
+        c = self.fields
         try:
-            guardarCultivos(cultivos_data)
-            return True, f"Cultivo '{nombre_cultivo}' eliminado correctamente."
-        except Exception as e:
-            logger.error(f"No se pudo guardar cultivos después de eliminar '{nombre_cultivo}' para {email_usuario}: {e}")
-            return False, f"No se pudo eliminar el cultivo: {e}"
+            cultivos.agregar_cultivo(self.user, c["nombre"], c["cantidad"], c["precio"])
+            logger.info('cultivo agregado correctamente.')
+            messagebox.showinfo("Éxito", "Cultivo guardado correctamente.")
+        except ServicioError as e:
+            logger.warning('error al agregar cultivo.')
+            messagebox.showerror("Error", e.mensaje)
 
+    @require_permission("eliminar_cultivo")
+    def eliminarCultivo(self, nombre_cultivo, *, user):
+        """Elimina un cultivo por nombre. Retorna (exito: bool, mensaje: str)."""
+        try:
+            cultivos.eliminar_cultivo(user, nombre_cultivo)
+            return True, f"Cultivo '{nombre_cultivo}' eliminado correctamente."
+        except ServicioError as e:
+            return False, e.mensaje
 
     def back(self):        
         from controlador.controladorVistas import ControladorVistas
