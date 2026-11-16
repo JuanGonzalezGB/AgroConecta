@@ -8,3 +8,7 @@ class DuplicadoError(RepositorioError):
 
 class NoEncontradoError(RepositorioError):
     """La entidad referenciada no existe."""
+
+
+class ConflictoError(RepositorioError):
+    """La entidad cambió desde que se leyó (concurrencia optimista)."""

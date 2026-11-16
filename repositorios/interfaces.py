@@ -111,8 +111,12 @@ class PedidoRepository(ABC):
                delivery_email: str | None = None, estado: str | None = None) -> list[dict]: ...
 
     @abstractmethod
-    def actualizar(self, pedido: dict) -> dict:
-        """Persiste estado, domiciliario y los eventos nuevos del historial."""
+    def actualizar(self, pedido: dict, estado_esperado: str | None = None) -> dict:
+        """Persiste estado, domiciliario y los eventos nuevos del historial.
+
+        Si se indica ``estado_esperado`` y el pedido ya cambió de estado, lanza
+        ``ConflictoError`` (evita que dos clientes pisen la misma transición).
+        """
 
 
 class NotificacionRepository(ABC):

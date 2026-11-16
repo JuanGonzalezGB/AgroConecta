@@ -2,7 +2,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from repositorios._base import SQLAlchemyRepo
-from repositorios.errores import DuplicadoError, NoEncontradoError
+from repositorios.errores import ConflictoError, DuplicadoError, NoEncontradoError
 from repositorios.interfaces import PedidoRepository
 from repositorios.modelos import Pedido, PedidoEvento, Usuario, ahora_str
 
@@ -87,11 +87,13 @@ class SQLAlchemyPedidoRepository(SQLAlchemyRepo, PedidoRepository):
                 q = q.where(Pedido.estado == estado)
             return [_a_dict(p) for p in s.scalars(q).all()]
 
-    def actualizar(self, pedido: dict) -> dict:
+    def actualizar(self, pedido: dict, estado_esperado: str | None = None) -> dict:
         with self._session() as s:
             p = s.scalar(select(Pedido).options(*_CARGAR).where(Pedido.id_pedido == pedido["id_pedido"]))
             if p is None:
                 raise NoEncontradoError(f"Pedido {pedido['id_pedido']} no encontrado")
+            if estado_esperado is not None and p.estado != estado_esperado:
+                raise ConflictoError(f"El pedido {p.id_pedido} ya está en estado {p.estado}")
             p.estado = pedido.get("estado", p.estado)
             email_delivery = pedido.get("delivery_email")
             p.delivery_id = _usuario_id(s, email_delivery, "Domiciliario") if email_delivery else None
