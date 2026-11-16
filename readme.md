@@ -192,6 +192,12 @@ docs/img/               capturas y GIF
 - Migrar el resto de pantallas de administración de Tkinter a los servicios.
 - Notificaciones en tiempo real (WebSocket) y geolocalización de entregas.
 
+## Notas
+
+- Define `JWT_SECRET` en `.env` para la API; sin él se usa un secreto temporal y los tokens se invalidan al reiniciar.
+- Las pantallas de administración de roles de Tkinter aún llaman a `modelo/` (no a `servicios/`); la API y el resto de la app sí usan los servicios.
+- Las credenciales de demo son solo para pruebas locales.
+
 ## Licencia
 
 [MIT](LICENSE)

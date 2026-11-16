@@ -192,6 +192,12 @@ docs/img/               screenshots and GIF
 - Move the remaining Tkinter admin screens to the services.
 - Real-time notifications (WebSocket) and delivery geolocation.
 
+## Notes
+
+- Set `JWT_SECRET` in `.env` for the API; otherwise a temporary secret is used and tokens are invalidated on restart.
+- The Tkinter role-administration screens still call `modelo/` (not `servicios/`); the API and the rest of the app use the services.
+- Demo credentials are for local testing only.
+
 ## License
 
 [MIT](LICENSE)
