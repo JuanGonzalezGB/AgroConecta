@@ -4,7 +4,7 @@ from sqlalchemy.orm import selectinload
 from repositorios._base import SQLAlchemyRepo
 from repositorios.errores import DuplicadoError, NoEncontradoError
 from repositorios.interfaces import PedidoRepository
-from repositorios.modelos import Pedido, PedidoEvento, Usuario
+from repositorios.modelos import Pedido, PedidoEvento, Usuario, ahora_str
 
 
 def _a_dict(p: Pedido) -> dict:
@@ -63,7 +63,7 @@ class SQLAlchemyPedidoRepository(SQLAlchemyRepo, PedidoRepository):
                 p.fecha = pedido["fecha"]
             for ev in pedido.get("historial", []):
                 p.eventos.append(PedidoEvento(
-                    timestamp=ev.get("timestamp") or ev.get("fecha"),
+                    timestamp=ev.get("timestamp") or ev.get("fecha") or ahora_str(),
                     evento=ev.get("evento", ""), detalle=ev.get("detalle", "")))
             s.add(p)
             s.flush()
@@ -103,7 +103,7 @@ class SQLAlchemyPedidoRepository(SQLAlchemyRepo, PedidoRepository):
             ya = len(p.eventos)
             for ev in pedido.get("historial", [])[ya:]:
                 p.eventos.append(PedidoEvento(
-                    timestamp=ev.get("timestamp") or ev.get("fecha"),
+                    timestamp=ev.get("timestamp") or ev.get("fecha") or ahora_str(),
                     evento=ev.get("evento", ""), detalle=ev.get("detalle", "")))
             s.flush()
             s.refresh(p)

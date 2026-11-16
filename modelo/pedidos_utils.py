@@ -1,142 +1,87 @@
-import os
-import json
-import qrcode
-from io import BytesIO
+"""Operaciones de pedidos: orquestan ``pedidoModel`` (reglas) y el repositorio (persistencia)."""
 import base64
-from datetime import datetime
+import json
 import logging
-from conect.mongoConnection import MongoConnection  # <-- tu import correcto
+from io import BytesIO
+
+import qrcode
+
+from modelo import pedidoModel
+from repositorios import get_pedido_repo
+from repositorios.errores import NoEncontradoError
 
 logger = logging.getLogger(__name__)
 
-# Ruta local de respaldo
-BASE_DIR = os.path.dirname(os.path.dirname(__file__))
-DATA_DIR = os.path.join(BASE_DIR, "data")
-RUTA_PEDIDOS = os.path.join(DATA_DIR, "pedidos.json")
-QRPEDIDOS_DIR = os.path.join(DATA_DIR, "qr_pedidos")
 
-
-# -------------------------
-# ASEGURAR ARCHIVOS
-# -------------------------
-def asegurar_archivo_pedidos():
-    """Crea pedidos.json si no existe."""
-    if not os.path.exists(RUTA_PEDIDOS):
-        with open(RUTA_PEDIDOS, "w", encoding="utf-8") as f:
-            json.dump({"pedidos": []}, f, indent=4, ensure_ascii=False)
-
-
-def asegurar_carpeta_qr():
-    if not os.path.exists(QRPEDIDOS_DIR):
-        logger.warning('No existe carpeta de QR!')
-        try:
-            os.makedirs(QRPEDIDOS_DIR)
-            logger.info(f'Carpeta de QR creada: {QRPEDIDOS_DIR}')
-        except Exception as e:
-            logger.error(f'No se pudo crear carpeta de QR: {e}')
-
-def cargar_pedidos():
-    """
-    Devuelve todos los pedidos almacenados en la colección 'pedidos' de MongoDB.
-    """
-    try:
-        mongo = MongoConnection()
-        db = mongo.get_database()
-        pedidos_col = db["pedidos"]
-        pedidos = list(pedidos_col.find({}, {'_id': 0}))  # excluye _id si no lo necesitas
-        return {"pedidos": pedidos}
-    except Exception as e:
-        logger.error(f"No se pudieron cargar los pedidos desde MongoDB: {e}")
-        logger.exception(e)
-        return {"pedidos": []}
-# -------------------------
-# CARGAR Y GUARDAR JSON
-# -------------------------
-"""def cargar_pedidos():
-    asegurar_archivo_pedidos()
-    with open(RUTA_PEDIDOS, "r", encoding="utf-8") as f:
-        return json.load(f)"""
-
-
-def guardar_pedidos(data):
-    with open(RUTA_PEDIDOS, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=4, ensure_ascii=False)
-
-
-# -------------------------
-# GENERAR QR
-# -------------------------
-def generar_qr_pedido(pedido: dict):
-    """
-    Genera QR, lo guarda localmente y devuelve base64 para Mongo.
-    """
-    contenido = json.dumps(pedido, ensure_ascii=False, indent=2)
-    asegurar_carpeta_qr()
-    #ruta = os.path.join(QRPEDIDOS_DIR, f"pedido_{pedido['id_pedido']}.png")
-
-    qr = qrcode.QRCode(
-        version=None,
-        error_correction=qrcode.constants.ERROR_CORRECT_M,
-        box_size=10,
-        border=4
+def generar_qr_pedido(pedido: dict) -> str:
+    """Genera el QR del pedido y lo devuelve como PNG en base64."""
+    contenido = json.dumps(
+        {k: pedido.get(k) for k in ("id_pedido", "restaurante", "campesino", "producto", "cantidad")},
+        ensure_ascii=False,
     )
+    qr = qrcode.QRCode(version=None, error_correction=qrcode.constants.ERROR_CORRECT_M, box_size=10, border=4)
     qr.add_data(contenido)
     qr.make(fit=True)
     img = qr.make_image(fill="black", back_color="white")
-    #img.save(ruta)
-
-    # Convertir a base64 para MongoDB
-    buffered = BytesIO()
-    img.save(buffered, format="PNG")
-    qr_b64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
-
-    return qr_b64
+    buffer = BytesIO()
+    img.save(buffer, format="PNG")
+    return base64.b64encode(buffer.getvalue()).decode("utf-8")
 
 
-# -------------------------
-# REGISTRAR PEDIDO
-# -------------------------
-def registrar_pedido(restaurante: dict, campesino: dict, cultivo: dict, cantidad: int):
-    """
-    Registra pedido en JSON local y MongoDB, genera historial y QR.
-    """
-    # Crear ID único
-    id_pedido = f"PED-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+def registrar_pedido(restaurante: dict, campesino: dict, cultivo: dict, cantidad: int) -> dict:
+    """Crea y guarda un pedido (con historial y QR). Lanza excepción si no se pudo guardar."""
+    pedido = pedidoModel.crear_pedido(
+        campesino, restaurante, cultivo,
+        cantidad=cantidad, precio_total=cantidad * cultivo.get("precio", 0),
+    )
+    pedido["qr_base64"] = generar_qr_pedido(pedido)
+    guardado = get_pedido_repo().crear(pedido)
+    logger.info(f"Pedido {guardado['id_pedido']} guardado")
+    return guardado
 
-    # Estructura del pedido
-    pedido = {
-        "id_pedido": id_pedido,
-        "restaurante": restaurante.get("nombre"),
-        "campesino": campesino.get("nombre"),
-        "producto": cultivo.get('nombre'),
-        "cantidad": cantidad,
-        "precio_total": cantidad * cultivo.get("precio", 0),
-        "estado": "Pedido creado",
-        "fecha": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        "historial": [
-            f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Pedido creado automáticamente."
-        ]
-    }
 
-    # Generar QR
-    qr_b64 = generar_qr_pedido(pedido)
-    #pedido["codigo_qr"] = ruta_qr
-    pedido["qr_base64"] = qr_b64  # para MongoDB
+def obtener_pedido(id_pedido: str) -> dict | None:
+    return get_pedido_repo().obtener(id_pedido)
 
-    # Guardar en JSON local
-    """data = cargar_pedidos()
-    data["pedidos"].append(pedido)
-    guardar_pedidos(data)
-"""
-    # Guardar en MongoDB
-    try:
-        mongo = MongoConnection()
-        db = mongo.get_database()
-        pedidos_col = db["pedidos"]
-        pedidos_col.insert_one(pedido)
-        logger.info(f"Pedido {id_pedido} guardado en MongoDB")
-    except Exception as e:
-        logger.error(f"No se pudo guardar pedido en MongoDB: {e}")
-        logger.exception(e)
 
-    return pedido
+def listar_pedidos(**filtros) -> list:
+    """Filtros: restaurante_email, campesino_email, delivery_email, estado."""
+    return get_pedido_repo().listar(**filtros)
+
+
+def cargar_pedidos() -> dict:
+    """Todos los pedidos, con el formato histórico ``{"pedidos": [...]}``."""
+    return {"pedidos": get_pedido_repo().listar()}
+
+
+def _transicionar(id_pedido: str, accion, *args) -> dict:
+    repo = get_pedido_repo()
+    pedido = repo.obtener(id_pedido)
+    if pedido is None:
+        raise NoEncontradoError(f"Pedido {id_pedido} no encontrado")
+    accion(pedido, *args)  # lanza EstadoInvalidoError si la transición no es válida
+    return repo.actualizar(pedido)
+
+
+def aceptar_pedido(id_pedido: str) -> dict:
+    return _transicionar(id_pedido, pedidoModel.aceptar)
+
+
+def rechazar_pedido(id_pedido: str, motivo: str = "") -> dict:
+    return _transicionar(id_pedido, pedidoModel.rechazar, motivo)
+
+
+def cancelar_pedido(id_pedido: str, motivo: str = "") -> dict:
+    return _transicionar(id_pedido, pedidoModel.cancelar, motivo)
+
+
+def asignar_delivery(id_pedido: str, delivery: dict) -> dict:
+    return _transicionar(id_pedido, pedidoModel.asignar_delivery, delivery)
+
+
+def marcar_en_camino(id_pedido: str) -> dict:
+    return _transicionar(id_pedido, pedidoModel.marcar_en_camino)
+
+
+def marcar_entregado(id_pedido: str) -> dict:
+    return _transicionar(id_pedido, pedidoModel.marcar_entregado)

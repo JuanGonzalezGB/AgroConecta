@@ -23,8 +23,8 @@ class SQLAlchemyNotificacionRepository(SQLAlchemyRepo, NotificacionRepository):
                 destinatario=data["destinatario"],
                 titulo=data.get("titulo", ""),
                 mensaje=data.get("mensaje", ""),
-                leido=False,
-                fecha_hora=ahora_str(),
+                leido=bool(data.get("leido", False)),
+                fecha_hora=data.get("fecha_hora") or ahora_str(),
                 mostrar_inmediatamente=data.get("mostrar_inmediatamente", True),
             )
             s.add(n)
