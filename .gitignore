@@ -1,6 +1,23 @@
-.vscode/
+# Entornos y dependencias
+venv/
+.venv/
+.env
+
+# Python
 __pycache__/
 *.pyc
-venv/
-config/
+.pytest_cache/
+
+# IDE
+.idea/
+.vscode/
+
+# Generados en ejecución
 logs/
+qrs/
+qr_pedidos/
+facturas/
+config/
+data/*.db
+data/*.db-wal
+data/*.db-shm
