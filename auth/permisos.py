@@ -1,11 +1,22 @@
 import functools
-from tkinter import messagebox
 from modelo.rolesUtils import _permisos_de_usuario
 from modelo.auditoria import log_auditoria
 from diccionarios import PERMISOS_ALIAS
 import logging
 
 logger = logging.getLogger(__name__)
+
+def _avisar_permiso_denegado(permiso_requerido):
+    """Muestra el aviso en la UI de escritorio si hay Tkinter disponible; si no, solo se registra."""
+    try:
+        from tkinter import messagebox
+        messagebox.showerror(
+            "Permiso denegado",
+            f"No tienes permiso para realizar esta acción.\nPermiso requerido: {permiso_requerido}"
+        )
+    except Exception:  # sin Tkinter o sin entorno gráfico (API, pruebas, servidores)
+        logger.debug("No se pudo mostrar el aviso gráfico de permiso denegado")
+
 
 def require_permission(permiso_requerido):
     """
@@ -42,10 +53,7 @@ def require_permission(permiso_requerido):
 
             # Verificar si el usuario tiene alguno de los permisos válidos
             if not any(p in permisos_actor for p in permisos_validos):
-                messagebox.showerror(
-                    "Permiso denegado",
-                    f"No tienes permiso para realizar esta acción.\nPermiso requerido: {permiso_requerido}"
-                )
+                _avisar_permiso_denegado(permiso_requerido)
                 logger.warning(
                     f"Usuario {user_actor.get('email')} DENEGADO para '{permiso_requerido}' "
                     f"(permisos disponibles: {permisos_actor})"

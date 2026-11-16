@@ -1,219 +1,85 @@
-import os
-import json
-from auth.permisos import require_permission
-from conect.mongoConnection import MongoConnection
-from diccionarios import LLAVESUSUARIOS, USUARIOS_INICIALES,PERMISOS_CATEGORIAS
+"""Usuarios, asignación de roles y cultivos. Fachada sobre ``repositorios``."""
 import logging
+
+from auth.permisos import require_permission
+from diccionarios import LLAVESUSUARIOS
+from repositorios import get_cultivo_repo, get_usuario_repo
 
 logger = logging.getLogger(__name__)
 
 
-BASE_DIR = os.path.dirname(__file__)
-DATA_DIR = os.path.join(BASE_DIR, "../data")
-RUTA_USUARIOS = os.path.join(DATA_DIR, "usuarios.json")
-RUTA_CULTIVOS = os.path.join(DATA_DIR, "cultivos.json")  
-
-def asegurarAdminMongo():
-    try:
-        db = MongoConnection.get_database()
-        collection = db["usuarios"]
-
-        # Buscar si ya existe algún admin
-        admin_existente = collection.find_one({"roles": "admin"})
-
-        if not admin_existente:
-            logger.warning("No existe ADMIN en MongoDB, creando desde USUARIOS_INICIALES...")
-
-            # Tomamos el admin desde tu diccionario original
-            admin_default = USUARIOS_INICIALES["admin"][0]
-
-            collection.insert_one(admin_default)
-
-            logger.info("ADMIN creado correctamente en MongoDB")
-
-        else:
-            logger.debug("ADMIN ya existe en MongoDB")
-
-    except Exception as e:
-        logger.critical("Error asegurando ADMIN en MongoDB")
-        logger.exception(e)
-
-"""def asegurarFile():
-    if not os.path.exists(DATA_DIR):
-        os.makedirs(DATA_DIR)
-        logger.info(f"Carpeta creada: {DATA_DIR}")
-
-    if not os.path.exists(RUTA_USUARIOS):
-        logger.warning('No existe usuarios.json, creando con usuario ADMIN por defecto...')
-        try:
-            with open(RUTA_USUARIOS, 'w', encoding='utf-8') as f:
-                json.dump(USUARIOS_INICIALES, f, ensure_ascii=False, indent=2)
-            logger.info('usuarios.json creado con éxito en /data con usuario ADMIN')
-        except Exception as e:
-            logger.critical("NO SE PUDO CREAR usuarios.json")
-            logger.exception(e)
-
-
-    if not os.path.exists(RUTA_CULTIVOS):
-        logger.warning('No existe cultivos.json, creando...')
-        try:
-            with open(RUTA_CULTIVOS, 'w', encoding='utf-8') as f:
-                json.dump({}, f, ensure_ascii=False, indent=2)  # guardamos dict vacío
-            logger.info('cultivos.json creado con éxito en /data')
-        except Exception as e:
-            logger.critical("NO SE PUDO CREAR cultivos.json")
-            logger.exception(e)"""
-
-
-# ------------------ Funciones de usuarios (sin cambios) ------------------
-
-COLLECTION_USUARIOS = "usuarios"
-
+# ------------------ Usuarios ------------------
 
 def cargarUsuarios():
-    """
-    Carga todos los usuarios desde MongoDB.
-    Devuelve un diccionario con llaves según LLAVESUSUARIOS.
-    """
-    try:
-        db = MongoConnection.get_database()
-        collection = db[COLLECTION_USUARIOS]
-
-        data = {valor: [] for valor in LLAVESUSUARIOS.values()}
-
-        for doc in collection.find({}):
-            tipo = doc.get("tipo")  # asumimos que guardas el tipo de usuario en 'tipo'
-            if tipo in data:
-                data[tipo].append(doc)
-            else:
-                # si tipo no existe en LLAVESUSUARIOS, lo ignoramos o podemos ponerlo en "otros"
-                logger.warning(f"Tipo de usuario desconocido '{tipo}' para {doc.get('email')}")
-                data.setdefault("otros", []).append(doc)
-
-        return data
-
-    except Exception as e:
-        logger.critical('NO SE PUDO CARGAR USUARIOS desde MongoDB')
-        logger.exception(e)
-        return {valor: [] for valor in LLAVESUSUARIOS.values()}
+    """Devuelve {tipo: [usuarios]} con llaves según LLAVESUSUARIOS (más 'admin' si existe)."""
+    data = {valor: [] for valor in LLAVESUSUARIOS.values()}
+    for u in get_usuario_repo().listar():
+        data.setdefault(u.get("tipo") or "otros", []).append(u)
+    return data
 
 
 def guardarUsuarios(data):
-    """
-    Guarda todos los usuarios en MongoDB.
-    data debe ser un dict con llaves según LLAVESUSUARIOS.
-    Cada documento reemplaza al usuario según su email.
-    """
-    try:
-        db = MongoConnection.get_database()
-        collection = db[COLLECTION_USUARIOS]
+    """Guarda (upsert por email) todos los usuarios de un dict {tipo: [usuarios]}."""
+    repo = get_usuario_repo()
+    for tipo, lista_usuarios in data.items():
+        for u in lista_usuarios:
+            if not u.get("email"):
+                logger.warning(f"Usuario sin email ignorado: {u}")
+                continue
+            u["tipo"] = tipo
+            repo.guardar(u)
+    logger.info("Usuarios guardados correctamente")
 
-        for tipo, lista_usuarios in data.items():
-            for u in lista_usuarios:
-                email = u.get("email")
-                if not email:
-                    logger.warning(f"Usuario sin email ignorado: {u}")
-                    continue
-                # aseguramos que el tipo esté presente
-                u["tipo"] = tipo
-                collection.update_one(
-                    {"email": email},
-                    {"$set": u},
-                    upsert=True
-                )
-
-        logger.info("Usuarios guardados correctamente en MongoDB")
-
-    except Exception as e:
-        logger.critical('NO SE PUDO GUARDAR USUARIOS en MongoDB')
-        logger.exception(e)
 
 def listar_usuarios():
-    """
-    Devuelve una lista plana de todos los usuarios.
-    Cada usuario es un diccionario con al menos 'nombre' y 'email'.
-    """
-    data = cargarUsuarios()
-    usuarios = []
-    for lista in data.values():
-        usuarios.extend(lista)
-    return usuarios
+    """Lista plana de todos los usuarios."""
+    return get_usuario_repo().listar()
+
 
 def normalizar_permisos(permisos):
-    """
-    Convierte cualquier lista de permisos (string o dict) en lista de IDs (strings) sin duplicados.
-    """
+    """Convierte cualquier lista/dict de permisos (str o dict) en lista de IDs sin duplicados."""
     result = []
     if isinstance(permisos, dict):
-        for lista in permisos.values():
-            for p in lista:
-                if isinstance(p, dict) and "id" in p:
-                    result.append(p["id"])
-                elif isinstance(p, str):
-                    result.append(p)
-    elif isinstance(permisos, list):
+        permisos = [p for lista in permisos.values() for p in lista]
+    if isinstance(permisos, list):
         for p in permisos:
             if isinstance(p, dict) and "id" in p:
                 result.append(p["id"])
             elif isinstance(p, str):
                 result.append(p)
-    return list(set(result))  # eliminar duplicados
+    return list(set(result))
+
 
 @require_permission("gestionar_usuarios")
 def asignar_rol_a_usuario(email_usuario, nuevo_rol_id, *, user):
     from modelo.rolesModel import cargar_roles
-    from conect.mongoConnection import MongoConnection  # tu conexión
-    roles_def = cargar_roles()
 
-    ids_validos = [r["id"] for r in roles_def]
+    ids_validos = [r["id"] for r in cargar_roles()]
+    nuevos = nuevo_rol_id if isinstance(nuevo_rol_id, list) else [nuevo_rol_id]
     if isinstance(nuevo_rol_id, list):
-        if any(r not in ids_validos for r in nuevo_rol_id):
+        if any(r not in ids_validos for r in nuevos):
             return False, f"Uno o más roles no existen: {nuevo_rol_id}"
-    else:
-        if nuevo_rol_id not in ids_validos:
-            return False, f"Rol '{nuevo_rol_id}' no existe"
+    elif nuevo_rol_id not in ids_validos:
+        return False, f"Rol '{nuevo_rol_id}' no existe"
 
-    db = MongoConnection.get_database()
-    collection = db["usuarios"]
-
-    usuario_objetivo = collection.find_one({"email": email_usuario})
-    if not usuario_objetivo:
+    repo = get_usuario_repo()
+    objetivo = repo.obtener_por_email(email_usuario)
+    if not objetivo:
         return False, "Usuario no encontrado"
 
-    # 🔹 Actualizar roles
-    roles_actuales = set(usuario_objetivo.get("roles", []))
-    if isinstance(nuevo_rol_id, list):
-        roles_actuales.update(nuevo_rol_id)
-    else:
-        roles_actuales.add(nuevo_rol_id)
-
-    # 🔹 Calcular permisos finales
-    permisos_finales = []
-    for rol_id in roles_actuales:
-        rol_obj = next((r for r in roles_def if r["id"] == rol_id), None)
-        if rol_obj:
-            permisos_finales.extend(normalizar_permisos(rol_obj.get("permisos", {})))
-
-    # 🔹 Guardar cambios en Mongo
-    collection.update_one(
-        {"email": email_usuario},
-        {"$set": {
-            "roles": list(roles_actuales),
-            "permisos": sorted(list(set(permisos_finales)))
-        }}
-    )
+    roles = list(objetivo.get("roles", []))
+    roles.extend(r for r in nuevos if r not in roles)
+    repo.establecer_roles(email_usuario, roles)  # los permisos se derivan de los roles
 
     logger.info(f"{user.get('email')} asignó rol '{nuevo_rol_id}' a '{email_usuario}' correctamente")
     return True, f"Rol '{nuevo_rol_id}' asignado correctamente"
 
+
 @require_permission("gestionar_usuarios")
 def quitar_rol_a_usuario(email_usuario, roles_a_quitar, *, user):
     from modelo.rolesModel import cargar_roles
-    data = cargarUsuarios()
-    roles_def = cargar_roles()
 
-    # Validar roles a quitar
-    ids_validos = [r["id"] for r in roles_def]
+    ids_validos = [r["id"] for r in cargar_roles()]
     if isinstance(roles_a_quitar, list):
         invalidos = [r for r in roles_a_quitar if r not in ids_validos]
         if invalidos:
@@ -223,46 +89,18 @@ def quitar_rol_a_usuario(email_usuario, roles_a_quitar, *, user):
             return False, f"Rol '{roles_a_quitar}' no existe"
         roles_a_quitar = [roles_a_quitar]
 
-    usuario_objetivo = None
-    tipo_usuario = None
-    index_usuario = None
-
-    for tipo, lista in data.items():
-        for i, u in enumerate(lista):
-            if u.get("email") == email_usuario:
-                usuario_objetivo = u
-                tipo_usuario = tipo
-                index_usuario = i
-                break
-        if usuario_objetivo:
-            break
-
-    if not usuario_objetivo:
+    repo = get_usuario_repo()
+    objetivo = repo.obtener_por_email(email_usuario)
+    if not objetivo:
         return False, "Usuario no encontrado"
 
-    usuario_objetivo.setdefault("roles", [])
-
-    # Separar roles quitables y prohibidos
     roles_prohibidos = [r for r in roles_a_quitar if r == "admin"]
     roles_a_quitar_reales = [r for r in roles_a_quitar if r != "admin"]
 
-    # Eliminar solo los roles permitidos
     if roles_a_quitar_reales:
-        usuario_objetivo["roles"] = [r for r in usuario_objetivo["roles"] if r not in roles_a_quitar_reales]
+        restantes = [r for r in objetivo.get("roles", []) if r not in roles_a_quitar_reales]
+        repo.establecer_roles(email_usuario, restantes)
 
-    # Recalcular permisos
-    permisos_finales = []
-    for rol_id in usuario_objetivo["roles"]:
-        rol_obj = next((r for r in roles_def if r["id"] == rol_id), None)
-        if rol_obj:
-            permisos_finales.extend(normalizar_permisos(rol_obj.get("permisos", {})))
-    usuario_objetivo["permisos"] = sorted(list(set(permisos_finales)))
-
-    # Guardar cambios
-    data[tipo_usuario][index_usuario] = usuario_objetivo
-    guardarUsuarios(data)
-
-    # Construir mensaje
     msg_quitar = f"Roles eliminados: {roles_a_quitar_reales}" if roles_a_quitar_reales else ""
     msg_admin = "El rol 'admin' no se puede quitar." if roles_prohibidos else ""
     msg = "\n".join(filter(None, [msg_quitar, msg_admin]))
@@ -271,113 +109,56 @@ def quitar_rol_a_usuario(email_usuario, roles_a_quitar, *, user):
     return True, msg or "No se eliminaron roles."
 
 
-
 def asignar_rol_base_automatico(email_usuario, rol_base):
-    """
-    Asigna automáticamente un rol al usuario recién creado sin validar permisos.
-    """
+    """Asigna un rol al usuario recién creado sin validar permisos (actor interno)."""
     usuario_actor = {"email": "DESIGNATOR", "permisos": ["gestionar_usuarios"]}
     return asignar_rol_a_usuario(email_usuario, rol_base, user=usuario_actor)
 
 
 def obtener_usuario_por_email(email):
-    data = cargarUsuarios()
-    for lista in data.values():
-        for u in lista:
-            if u.get("email") == email:
-                return u
-    return None
+    return get_usuario_repo().obtener_por_email(email)
 
 
-# ------------------ Funciones de cultivos ------------------
-
-COLLECTION_CULTIVOS = "cultivos"
-
+# ------------------ Cultivos ------------------
 
 def cargarCultivos():
-    """Carga todos los cultivos desde MongoDB en formato {email: [cultivos]}"""
-    try:
-        db = MongoConnection.get_database()
-        collection = db[COLLECTION_CULTIVOS]
-
-        cultivos_data = {}
-        for doc in collection.find({}):
-            email = doc.get("email")
-            cultivos = doc.get("cultivos", [])
-            if email:
-                cultivos_data[email] = cultivos
-
-        return cultivos_data
-
-    except Exception as e:
-        logger.critical("NO SE PUDO CARGAR cultivos desde MongoDB")
-        logger.exception(e)
-        return {}
+    """Devuelve {email_campesino: [cultivos]}."""
+    return get_cultivo_repo().listar_todos()
 
 
 def guardarCultivos(data):
-    """
-    Guarda todos los cultivos en MongoDB.
-    data debe ser un dict {email: [cultivos]}.
-    Reemplaza los cultivos de cada usuario.
-    """
-    try:
-        db = MongoConnection.get_database()
-        collection = db[COLLECTION_CULTIVOS]
-
-        for email, cultivos in data.items():
-            collection.update_one(
-                {"email": email},
-                {"$set": {"cultivos": cultivos}},
-                upsert=True  # crea el documento si no existe
-            )
-
-        logger.info("Cultivos guardados correctamente en MongoDB")
-
-    except Exception as e:
-        logger.critical("NO SE PUDO GUARDAR cultivos en MongoDB")
-        logger.exception(e)
+    """Reemplaza los cultivos de cada campesino del dict {email: [cultivos]}."""
+    repo = get_cultivo_repo()
+    for email, cultivos in data.items():
+        repo.reemplazar(email, cultivos)
+    logger.info("Cultivos guardados correctamente")
 
 
 def obtenerCultivosUsuario(user):
-    """Devuelve todos los cultivos de un usuario desde cultivos.json"""
     email = user.get("email")
     if not email:
         logger.error("Usuario sin email recibido en obtenerCultivosUsuario")
         return []
-
-    cultivos_data = cargarCultivos()
-    return cultivos_data.get(email, [])
-
-
-
+    return get_cultivo_repo().listar(email)
 
 
 def actualizarStockCampesino(email_campesino, index_cultivo, nueva_cantidad):
-    """Actualiza la cantidad de un cultivo de un usuario"""
-    cultivos_data = cargarCultivos()
-    cultivos_usuario = cultivos_data.get(email_campesino, [])
-
-    if index_cultivo < len(cultivos_usuario):
-        cultivos_usuario[index_cultivo]["cantidad"] = nueva_cantidad
-        cultivos_data[email_campesino] = cultivos_usuario
-        guardarCultivos(cultivos_data)
+    """Actualiza la cantidad del cultivo en la posición ``index_cultivo`` del campesino."""
+    repo = get_cultivo_repo()
+    cultivos = repo.listar(email_campesino)
+    if 0 <= index_cultivo < len(cultivos):
+        repo.actualizar_cantidad(email_campesino, cultivos[index_cultivo]["nombre"], nueva_cantidad)
         logger.info(f"Stock actualizado para {email_campesino} ({nueva_cantidad} unidades)")
         return True
-    else:
-        logger.error(f"Index de cultivo {index_cultivo} fuera de rango para {email_campesino}")
-        return False
+    logger.error(f"Index de cultivo {index_cultivo} fuera de rango para {email_campesino}")
+    return False
 
 
 def obtenerCampesinosConCultivos():
-    """Devuelve lista de campesinos que tengan cultivos con cantidad > 0"""
-    cultivos_data = cargarCultivos()
+    """Campesinos con al menos un cultivo con cantidad > 0 (solo esos cultivos)."""
     disponibles = []
-    for email, cultivos in cultivos_data.items():
-        cultivos_disponibles = [c for c in cultivos if c.get("cantidad", 0) > 0]
-        if cultivos_disponibles:
-            disponibles.append({
-                "email": email,
-                "cultivos": cultivos_disponibles
-            })
+    for email, cultivos in get_cultivo_repo().listar_todos().items():
+        con_stock = [c for c in cultivos if c.get("cantidad", 0) > 0]
+        if con_stock:
+            disponibles.append({"email": email, "cultivos": con_stock})
     return disponibles
