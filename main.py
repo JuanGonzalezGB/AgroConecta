@@ -1,6 +1,6 @@
 import os
 import tkinter as tk
-from modelo.CRU import asegurarAdminMongo
+from modelo.inicializacion import inicializar_sistema
 from estilo import estiloFactory
 from vistas.main_view import MainView
 import modelo.saveConfig
@@ -21,7 +21,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def main():   
+def main():
+    try:
+        inicializar_sistema()
+    except Exception:
+        logger.exception('ERROR INICIALIZANDO LA BASE DE DATOS')
+        return
     estilo = estiloFactory.EstiloFactory.definirEstilo(modelo.saveConfig.cargar())
     logger.debug('cargando root...')
     try:
@@ -43,7 +48,6 @@ def main():
         return
     logger.info('Ejecutando AgroConecta...')
     try:
-        asegurarAdminMongo()
         root.mainloop()
     except Exception:
         logger.exception('ERROR AL CARGAR PROGRAMA')
