@@ -1,7 +1,7 @@
 from tkinter import messagebox
 from modelo.CRU import cargarCultivos, guardarCultivos
 from auth.permisos import require_permission
-from auth.seguridad import encriptar_contrasena
+from auth.seguridad import hash_contrasena
 from modelo.CRUD import crearCultivo, crearUsuario, eliminarCultivo
 from auth.validaciones import *
 import logging
@@ -23,7 +23,7 @@ class ControladorRegis:
         data = {k: e.get() for k, e in self.fields.items()}
         
         # Encriptar la contraseña antes de crear el usuario
-        data["password"] = encriptar_contrasena(data["password"])
+        data["password"] = hash_contrasena(data["password"])
         
         exito, agregar = crearUsuario(tipo, data)
         if exito:

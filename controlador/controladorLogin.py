@@ -1,5 +1,4 @@
 from tkinter import messagebox
-from auth.seguridad import encriptar_contrasena
 from modelo.CRUD import buscarUsuario
 from modelo.rolesModel import aplicar_roles_y_permisos
 from controlador.controladorVistas import ControladorVistas
@@ -33,10 +32,8 @@ class ControladorLogin:
             messagebox.showerror('Error', 'Ingrese email y contraseña.')
             return
 
-        # Encriptar la contraseña ingresada para comparar con la almacenada
-        pwd_hash = encriptar_contrasena(pwd)
-
-        ok, user = buscarUsuario(email, pwd_hash)  # modificar buscarUsuario para comparar hashes
+        # buscarUsuario verifica el hash (bcrypt o SHA-256 legado, que se migra a bcrypt)
+        ok, user = buscarUsuario(email, pwd)
         if not ok:
             messagebox.showerror("Error", "Correo o contraseña incorrectos.")
             return

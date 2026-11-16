@@ -1,4 +1,5 @@
 from diccionarios import LLAVESUSUARIOS
+from auth.seguridad import verificar_contrasena, necesita_rehash, hash_contrasena
 from modelo.CRU import cargarCultivos, guardarCultivos
 import logging
 
@@ -58,19 +59,22 @@ def deleteUsuario():
     pass
 
 def buscarUsuario(email, password):
+    """Valida credenciales (password en texto plano). Migra hashes SHA-256 legados a bcrypt."""
     try:
         db = MongoConnection.get_database()
         collection = db["usuarios"]
 
-        usuario = collection.find_one({
-            "email": email,
-            "password": password
-        })
-
-        if usuario:
-            return True, usuario
-        else:
+        usuario = collection.find_one({"email": email})
+        if not usuario or not verificar_contrasena(password, usuario.get("password", "")):
             return False, None
+
+        if necesita_rehash(usuario.get("password", "")):
+            nuevo_hash = hash_contrasena(password)
+            collection.update_one({"email": email}, {"$set": {"password": nuevo_hash}})
+            usuario["password"] = nuevo_hash
+            logger.info(f"Contraseña de {email} migrada de SHA-256 a bcrypt")
+
+        return True, usuario
 
     except Exception as e:
         print("Error buscando usuario:", e)

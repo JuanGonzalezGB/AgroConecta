@@ -1,43 +1,48 @@
-from modelo.CRUD import cargarUsuarios, guardarUsuarios
-from auth.seguridad import encriptar_contrasena
+"""Migración puntual de contraseñas guardadas en texto plano a bcrypt.
+
+- Texto plano       -> se hashea con bcrypt.
+- SHA-256 legado    -> se deja igual: se migra a bcrypt solo en el próximo login
+                       correcto (no se puede revertir un hash para re-hashearlo aquí).
+- bcrypt            -> se omite.
+
+Uso (desde la raíz del repo):  python -m scripts.encriptarJSON
+"""
 import logging
-import re
+
+from auth.seguridad import es_hash_bcrypt, es_hash_legado, hash_contrasena
+from modelo.CRU import cargarUsuarios, guardarUsuarios
 
 logger = logging.getLogger(__name__)
 
-# Patrón de SHA-256 en hexadecimal (64 caracteres, solo 0-9 y a-f)
-SHA256_HEX_PATTERN = re.compile(r'^[a-f0-9]{64}$', re.IGNORECASE)
 
 def actualizar_contrasenas():
     usuarios = cargarUsuarios()
-    total_actualizadas = 0
-    total_saltadas = 0
+    hasheadas = legadas = ya_bcrypt = 0
     try:
         for categoria, lista_usuarios in usuarios.items():
             for u in lista_usuarios:
-                password_actual = u.get("password", "")
-                if not password_actual:
-                    logger.warning(f'Usuario sin contraseña en {categoria}: {u.get("email","[sin email]")}')
+                actual = u.get("password", "")
+                if not actual:
+                    logger.warning(f'Usuario sin contraseña en {categoria}: {u.get("email", "[sin email]")}')
                     continue
+                if es_hash_bcrypt(actual):
+                    ya_bcrypt += 1
+                elif es_hash_legado(actual):
+                    legadas += 1  # se migrará en el login
+                else:
+                    u["password"] = hash_contrasena(actual)
+                    hasheadas += 1
+                    logger.info(f'Contraseña en texto plano hasheada para {u.get("email")}')
 
-                # Verificar si ya parece un SHA256
-                if SHA256_HEX_PATTERN.fullmatch(password_actual):
-                    # Detectado hash, saltamos
-                    logger.debug(f'Contraseña ya en SHA-256 para usuario {u.get("email")}, no se vuelve a hashear.')
-                    total_saltadas += 1
-                    continue
-
-                # Encriptar la contraseña
-                u["password"] = encriptar_contrasena(password_actual)
-                total_actualizadas += 1
-                logger.info(f'Contraseña actualizada a SHA-256 para usuario {u.get("email")}')
-        
         guardarUsuarios(usuarios)
-        logger.info(f'Se actualizaron {total_actualizadas} contraseñas. {total_saltadas} ya estaban en SHA-256 y se saltaron.')
-
+        logger.info(
+            f"{hasheadas} hasheadas con bcrypt, {legadas} SHA-256 pendientes de migrar al login, "
+            f"{ya_bcrypt} ya en bcrypt."
+        )
     except Exception as e:
-        logger.critical(f'NO PUDE ENCRIPTAR LAS CONTRASEÑAS EXISTENTES :( --->  {e}')
-
-        
+        logger.critical(f"No se pudieron encriptar las contraseñas existentes: {e}")
 
 
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    actualizar_contrasenas()

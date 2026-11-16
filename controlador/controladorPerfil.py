@@ -1,6 +1,6 @@
 from modelo.CRU import cargarUsuarios, guardarUsuarios
 from auth.validaciones import validar_contrasena
-from auth.seguridad import encriptar_contrasena  # <-- nuevo
+from auth.seguridad import hash_contrasena, verificar_contrasena
 import logging
 
 logger = logging.getLogger(__name__)
@@ -21,7 +21,7 @@ class ControladorPerfil:
                 if u.get("email") == email_usuario:
                     encontrado = True
                     # Validar contraseña actual encriptada
-                    if u.get("password") != encriptar_contrasena(contraseña_actual):
+                    if not verificar_contrasena(contraseña_actual, u.get("password", "")):
                         logger.warning(f"Contraseña actual incorrecta para usuario {email_usuario}")
                         return False, "La contraseña actual es incorrecta."
 
@@ -33,7 +33,7 @@ class ControladorPerfil:
                         )
 
                     # Guardar contraseña nueva encriptada
-                    u["password"] = encriptar_contrasena(nueva_contrasena)
+                    u["password"] = hash_contrasena(nueva_contrasena)
                     guardarUsuarios(self.usuarios)
                     logger.info(f"Contraseña actualizada correctamente para usuario {email_usuario}")
                     return True, "Contraseña actualizada correctamente."
