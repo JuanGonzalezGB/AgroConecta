@@ -14,7 +14,7 @@ def asegurarCarpeta():
             os.makedirs(CARPETA, exist_ok=True)
             logger.info('carpeta facturas creada satisfactoriamente.')
         except Exception as e:
-            logger.critical('NO SE PUDO CREAR CARPETA facturas: {e}')
+            logger.critical(f'NO SE PUDO CREAR CARPETA facturas: {e}')
 def generarFacturaTxt(comprador, campesino, cultivo, cantidad, total):
     asegurarCarpeta()
     logger.debug('formateando factura...')

@@ -1,5 +1,4 @@
 import tkinter as tk
-from datetime import datetime
 
 class HistorialPedidoView:
     def __init__(self, root, pedido: dict, estilo):

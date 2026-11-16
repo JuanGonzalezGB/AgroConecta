@@ -1,4 +1,3 @@
-from tkinter import messagebox, simpledialog
 from vistas import perfilView
 from vistas.admin_view import AdminView
 from vistas.selecTema import SelecTema
@@ -87,7 +86,7 @@ class ControladorVistas:
         logger.debug(f'Abriendo GenericaView para rol: {rol_id}')
         self.cambiar_vista(vista)
         self.mostrarNotificaciones(vista)
-        logger.info(f'GenericaView cargada correctamente')
+        logger.info('GenericaView cargada correctamente')
 
 
     def open_main(self):

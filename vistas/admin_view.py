@@ -1,6 +1,5 @@
 import tkinter as tk
 from vistas.interfaceViewPerfiles import InterfaceViewsPerfiles
-from controlador.controladorRoles import ControladorRoles
 
 class AdminView(InterfaceViewsPerfiles):
     def __init__(self, root, user, usuario_objetivo, estilo, notificationService):

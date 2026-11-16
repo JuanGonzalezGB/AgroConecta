@@ -1,4 +1,3 @@
-import tkinter as tk
 from modelo.CRU import cargarUsuarios, guardarUsuarios
 from modelo.rolesModel import (
     cargar_roles, guardar_roles
@@ -32,7 +31,7 @@ class ControladorAdmin():
             "id": id_rol,
             "nombre": nombre,
             "permisos": {"lectura": [], "escritura": [], "eliminacion": [], "administrativo": [], "otros": []},
-            "vista": f"open_generica"
+            "vista": "open_generica"
         }
 
         roles.append(nuevo)
@@ -182,21 +181,6 @@ class ControladorAdmin():
                         break
 
         return roles_con_permiso
-
-    def es_rol_protegido(self, rol_id):
-        """Determina si un rol es uno de los roles iniciales"""
-        return any(r["id"] == rol_id for r in ROLES_INICIALES)
-
-    def permiso_original_del_rol(self, rol_id, permiso_id):
-        """Devuelve True si el permiso pertenece originalmente al rol protegido"""
-        for r in ROLES_INICIALES:
-            if r["id"] == rol_id:
-                for cat in r.get("permisos", {}).values():
-                    for p in cat:
-                        p_id = p["id"] if isinstance(p, dict) else p
-                        if p_id == permiso_id:
-                            return True
-        return False
 
     def es_permiso_protegido(self, permiso_id):
         """Determina si un permiso pertenece a algún rol inicial"""

@@ -1,9 +1,6 @@
 import tkinter as tk
 from controlador.controlador_pedidos_restaurante import ControladorPedidosRestaurante
 from vistas.subventanas.restauranteSubventanas.historial_pedido_view import HistorialPedidoView
-from io import BytesIO
-from PIL import Image, ImageTk
-import base64
 
 class MisPedidosRestauranteView:
     def __init__(self, root, restaurante_actual: dict, estilo):

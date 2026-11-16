@@ -1,6 +1,5 @@
 import tkinter as tk
 from tkinter import simpledialog, messagebox
-from estilo.estilizador import Estilo
 from vistas.subventanas.interfaceSubViews import InterfaceSubViews
 import logging
 logger = logging.getLogger(__name__)

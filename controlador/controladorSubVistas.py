@@ -1,4 +1,3 @@
-from controlador.controladorAdmin import ControladorAdmin
 from vistas.subventanas.campesinoSubventanas.agregar_cultivos_view import AgregarCultivosView
 from vistas.subventanas.restauranteSubventanas.campesinos_disponibles_view import CampesinosDisponiblesView
 from vistas.subventanas.campesinoSubventanas.cultivos_view import CultivosView

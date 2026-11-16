@@ -1,6 +1,5 @@
 import tkinter as tk
 from vistas.interfaceViewPerfiles import InterfaceViewsPerfiles
-from vistas.subventanas.restauranteSubventanas.mis_pedidos_restaurante_view import MisPedidosRestauranteView
 
 class RestauranteView(InterfaceViewsPerfiles):
     def __init__(self, root, user, estilo, notificationService):

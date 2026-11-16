@@ -28,8 +28,8 @@ def main():
         root = tk.Tk()    
         root.title("AgroConecta") 
         logger.info('cargado.')
-    except Exception as e:
-        logger.critical(logger.exception(f'ERROR CARGANDO ROOT: {e}'))
+    except Exception:
+        logger.exception('ERROR CARGANDO ROOT')
         return
         
     logger.debug('intentando cargar sistema de notificaciones...')
@@ -38,15 +38,15 @@ def main():
     try:      
         MainView(root, estilo, notification_service)
         logger.info('MainView cargado.')
-    except Exception as e:
-        logger.exception(f'ERROR CARGANDO MAINVIEW: ')
+    except Exception:
+        logger.exception('ERROR CARGANDO MAINVIEW')
         return
     logger.info('Ejecutando AgroConecta...')
     try:
         asegurarAdminMongo()
         root.mainloop()
-    except Exception as e:
-        logger.critical(logger.exception(f'ERROR AL CARGAR PROGRAMA'))
+    except Exception:
+        logger.exception('ERROR AL CARGAR PROGRAMA')
         return
     finally:
         print('JDB Soft.')

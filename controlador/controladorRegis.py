@@ -2,7 +2,7 @@ from tkinter import messagebox
 from modelo.CRU import cargarCultivos, guardarCultivos
 from auth.permisos import require_permission
 from auth.seguridad import hash_contrasena
-from modelo.CRUD import crearCultivo, crearUsuario, eliminarCultivo
+from modelo.CRUD import crearCultivo, crearUsuario
 from auth.validaciones import *
 import logging
 logger = logging.getLogger(__name__)
