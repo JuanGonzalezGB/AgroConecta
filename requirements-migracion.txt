@@ -1,0 +1,3 @@
+# Solo para scripts/migrar_desde_mongo.py (la app no usa Mongo)
+-r requirements.txt
+pymongo==4.16.0

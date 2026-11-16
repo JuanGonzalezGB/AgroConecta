@@ -11,5 +11,5 @@ Execute the program using:
 
     python main.py
 
-This version will only run using a remote mongoDB database through the local network. Change /conect/mongoConnection.py to adjust this.
+La base de datos es SQLite (data/agroconecta.db, se crea sola). Puedes cambiarla con DATABASE_URL (ver .env.example). Para cargar datos de demo: python scripts/seed_demo.py
 
